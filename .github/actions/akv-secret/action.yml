@@ -1,0 +1,55 @@
+name: Get Azure KeyVault Secrets
+
+description: |
+  Acquire secrets from Azure KeyVault via Federated authentication, and store
+  the results as masked environment variables.
+
+inputs:
+  tenant-id:
+    description: Entra ID tenant ID where the Azure KeyVault is located.
+    required: true
+  subscription-id:
+    description: Subscription where the Azure KeyVault is located.
+    required: true
+  client-id:
+    description: |
+      Service principal or managed identity ID with access to the Azure
+      KeyVault.
+    required: true
+  vault-name:
+    description: Name of the Azure KeyVault.
+    required: true
+  secret-names:
+    description: Comma-separated list of secret names in Azure KeyVault.
+    required: true
+  env-names:
+    description: |
+      Comma-separated list of environment variable names to store the secret
+      values.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Log into Azure
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.client-id }}
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+
+    - name: Download secrets
+      run: |
+        IFS=',' read -r -a secret_names <<< "$(echo "${{ inputs.secret-names }}" | tr -d ' ')"
+        IFS=',' read -r -a env_names <<< "$(echo "${{ inputs.env-names }}" | tr -d ' ')"
+        for i in "${!secret_names[@]}"; do
+          SECRET=$(az keyvault secret show \
+            --vault-name ${{ inputs.vault-name }} \
+            --name "${secret_names[$i]}" \
+            --query value \
+            --output tsv)
+          echo "::add-mask::$SECRET"
+          echo "${env_names[$i]}=$SECRET" >> $GITHUB_ENV
+          unset SECRET
+        done
+      shell: bash
