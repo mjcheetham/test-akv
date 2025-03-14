@@ -1,0 +1,44 @@
+name: TEST
+on:
+  workflow_dispatch:
+    inputs:
+      _debug_tmate:
+        description: Enable tmate for debugging
+        required: false
+        type: boolean
+
+permissions:
+  id-token: write # required for Azure login via OIDC
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs._debug_tmate == 'true' }}
+        with:
+          detached: true
+
+      - uses: actions/checkout@v2
+
+      - uses: ./.github/actions/akv-secret
+        name: Download secrets
+        id: token
+        with:
+          subscription-id: 39966b4c-42e9-49bb-b411-6d99f1bf87f4
+          tenant-id: 6ac55484-1f79-4c04-ba1b-74e13182258e
+          client-id: 022ed6bd-3fd8-4e7d-a806-58dad2606949
+          vault-name: mjcheetham-test-akv
+          secret-names: |
+            test-secret1
+            test-secret2,test-secret3
+          env-names: |
+            TEST_SECRET1, TEST_SECRET2,
+            TEST_SECRET3
+
+      - name: Print secrets
+        run: |
+          echo "TEST_SECRET1: $TEST_SECRET1"
+          echo "TEST_SECRET2: $TEST_SECRET2"
+          echo "TEST_SECRET3: $TEST_SECRET3"
+        shell: bash

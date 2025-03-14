@@ -1,0 +1,66 @@
+name: Get Azure KeyVault Secrets
+
+description: |
+  Acquire secrets from Azure KeyVault via Federated authentication, and store
+  the results as masked environment variables.
+
+inputs:
+  subscription-id:
+    description: Subscription where the Azure Key Vault is located.
+    required: true
+  tenant-id:
+    description: Entra ID tenant ID where the Azure Key Vault is located.
+    required: true
+  client-id:
+    description: |
+      Service principal or managed identity ID with access to the Azure
+      Key Vault.
+    required: true
+  vault-name:
+    description: Name of the Azure Key Vault.
+    required: true
+  secret-names:
+    description: |
+      Comma- or newline-separated list of secret names in Azure Key Vault.
+    required: true
+  env-names:
+    description: |
+      Comma- or newline-separated list of environment variable names to store the secret
+      values.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Log into Azure
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.client-id }}
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+
+    - name: Download secrets
+      shell: bash
+      run: |
+        normalized_secret_names=$(echo "${{ inputs.secret-names }}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')
+        normalized_env_names=$(echo "${{ inputs.env-names }}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')
+
+        readarray -t secret_names <<< "$normalized_secret_names"
+        readarray -t env_names <<< "$normalized_env_names"
+
+        if [ "${#secret_names[@]}" -ne "${#env_names[@]}" ]; then
+          echo "Error: Mismatched number of secrets and environment variable names."
+          exit 1
+        fi
+
+        for i in "${!secret_names[@]}"; do
+          SECRET=$(az keyvault secret show \
+            --vault-name mjcheetham-test-akv \
+            --name "${secret_names[$i]}" \
+            --query value \
+            --output tsv)
+          echo "::add-mask::$SECRET"
+          echo "${env_names[$i]}=$SECRET" >> $GITHUB_ENV
+          unset SECRET
+        done
+
