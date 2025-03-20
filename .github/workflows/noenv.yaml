@@ -1,0 +1,15 @@
+name: no-env
+on:
+  workflow_dispatch:
+
+jobs:
+  no-env:
+    environment: does-not-exist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run script without environment variables
+        run: |
+          echo "Hello, World!"
