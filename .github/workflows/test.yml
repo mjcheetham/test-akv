@@ -19,26 +19,33 @@ jobs:
         with:
           detached: true
 
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - uses: ./.github/actions/akv-secret
-        name: Download secrets
-        id: token
+      - uses: azure/login@v2
         with:
           subscription-id: 39966b4c-42e9-49bb-b411-6d99f1bf87f4
           tenant-id: 6ac55484-1f79-4c04-ba1b-74e13182258e
           client-id: 022ed6bd-3fd8-4e7d-a806-58dad2606949
-          vault-name: mjcheetham-test-akv
-          secret-names: |
+
+      - uses: ./.github/actions/akv-secret
+        id: kvsecrets
+        name: Download secrets
+        with:
+          vault: mjcheetham-test-akv
+          secrets: |
             test-secret1
-            test-secret2,test-secret3
-          env-names: |
-            TEST_SECRET1, TEST_SECRET2,
-            TEST_SECRET3
+            test-secret1 > alt-test-secret1
+            test-secret2 base64> data/file.txt
+            test-secret2 > raw-secret2
+            test-secret3 > $env:TEST_SECRET3
+            test-secret2 base64> $env:TEST_SECRET2
 
       - name: Print secrets
         run: |
-          echo "TEST_SECRET1: $TEST_SECRET1"
-          echo "TEST_SECRET2: $TEST_SECRET2"
-          echo "TEST_SECRET3: $TEST_SECRET3"
+          echo "${{ steps.kvsecrets.outputs.test-secret1 }}"
+          echo "${{ steps.kvsecrets.outputs.alt-test-secret1 }}"
+          echo "$(cat data/file.txt)"
+          echo "${{ steps.kvsecrets.outputs.raw-secret2 }}"
+          echo "$TEST_SECRET3"
+          echo "$TEST_SECRET2"
         shell: bash

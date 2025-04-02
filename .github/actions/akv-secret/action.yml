@@ -1,66 +1,58 @@
 name: Get Azure KeyVault Secrets
 
 description: |
-  Acquire secrets from Azure KeyVault via Federated authentication, and store
-  the results as masked environment variables.
+  Get secrets from Azure Key Vault and store the results as masked step outputs,
+  environment variables, or files.
 
 inputs:
-  subscription-id:
-    description: Subscription where the Azure Key Vault is located.
-    required: true
-  tenant-id:
-    description: Entra ID tenant ID where the Azure Key Vault is located.
-    required: true
-  client-id:
-    description: |
-      Service principal or managed identity ID with access to the Azure
-      Key Vault.
-    required: true
-  vault-name:
+  vault:
     description: Name of the Azure Key Vault.
     required: true
-  secret-names:
+  secrets:
     description: |
       Comma- or newline-separated list of secret names in Azure Key Vault.
-    required: true
-  env-names:
-    description: |
-      Comma- or newline-separated list of environment variable names to store the secret
-      values.
+      The output and encoding of secrets can be specified using this syntax:
+
+        SECRET ENCODING> $output:OUTPUT
+        SECRET ENCODING> $env:ENVAR
+        SECRET ENCODING> FILE
+
+        SECRET      Name of the secret in Azure Key Vault.
+        ENCODING    (optional) Encoding of the secret: base64.
+        OUTPUT      Name of a step output variable.
+        ENVAR       Name of an environment variable.
+        FILE        File path (relative or absolute).
+
+      If no output format is specified the default is a step output variable
+      with the same name as the secret. I.e, SECRET > $output:SECRET.
+
+      Examples:
+
+        Assign output variable named `raw-var` to the raw value of the secret
+        `raw-secret`:
+
+          raw-secret > $output:raw-var
+
+        Assign output variable named `decoded-var` to the base64 decoded value
+        of the secret `encoded-secret`:
+
+          encoded-secret base64> $output:decoded-var
+
+        Download the secret named `tls-certificate` to the file path
+        `.certs/tls.cert`:
+
+          tls-certificate > .certs/tls.cert
+
+        Assign environment variable `ENV_SECRET` to the base64 decoded value of
+        the secret `encoded-secret`:
+
+        encoded-secret base64> $env:ENV_SECRET
+
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Log into Azure
-      uses: azure/login@v2
-      with:
-        client-id: ${{ inputs.client-id }}
-        tenant-id: ${{ inputs.tenant-id }}
-        subscription-id: ${{ inputs.subscription-id }}
-
     - name: Download secrets
-      shell: bash
-      run: |
-        normalized_secret_names=$(echo "${{ inputs.secret-names }}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')
-        normalized_env_names=$(echo "${{ inputs.env-names }}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')
-
-        readarray -t secret_names <<< "$normalized_secret_names"
-        readarray -t env_names <<< "$normalized_env_names"
-
-        if [ "${#secret_names[@]}" -ne "${#env_names[@]}" ]; then
-          echo "Error: Mismatched number of secrets and environment variable names."
-          exit 1
-        fi
-
-        for i in "${!secret_names[@]}"; do
-          SECRET=$(az keyvault secret show \
-            --vault-name mjcheetham-test-akv \
-            --name "${secret_names[$i]}" \
-            --query value \
-            --output tsv)
-          echo "::add-mask::$SECRET"
-          echo "${env_names[$i]}=$SECRET" >> $GITHUB_ENV
-          unset SECRET
-        done
-
+      shell: node16
+      run: node index.js
