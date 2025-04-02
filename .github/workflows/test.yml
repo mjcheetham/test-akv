@@ -11,8 +11,47 @@ permissions:
   id-token: write # required for Azure login via OIDC
 
 jobs:
-  release:
+  win:
     runs-on: windows-latest
+    steps:
+      - uses: mxschmitt/action-tmate@v3
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs._debug_tmate == 'true' }}
+        with:
+          detached: true
+
+      - uses: actions/checkout@v3
+
+      - uses: azure/login@v2
+        with:
+          subscription-id: 39966b4c-42e9-49bb-b411-6d99f1bf87f4
+          tenant-id: 6ac55484-1f79-4c04-ba1b-74e13182258e
+          client-id: 022ed6bd-3fd8-4e7d-a806-58dad2606949
+
+      - uses: ./.github/actions/akv-secret
+        id: kv
+        name: Download secrets
+        with:
+          vault: mjcheetham-test-akv
+          secrets: |
+            test-secret1
+            test-secret1 > $output:alt-test-secret1
+            test-secret2 base64> data/file.txt
+            test-secret2 > $output:raw-secret2
+            test-secret3 > $env:TEST_SECRET3
+            test-secret2 base64> $env:TEST_SECRET2
+
+      - name: Print secrets
+        run: |
+          echo "${{ steps.kv.outputs.test-secret1 }}"
+          echo "${{ steps.kv.outputs.alt-test-secret1 }}"
+          echo "$(cat data/file.txt)"
+          echo "${{ steps.kv.outputs.raw-secret2 }}"
+          echo "$TEST_SECRET3"
+          echo "$TEST_SECRET2"
+        shell: bash
+
+  linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs._debug_tmate == 'true' }}
