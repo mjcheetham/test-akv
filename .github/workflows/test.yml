@@ -42,10 +42,10 @@ jobs:
 
       - name: Print secrets
         run: |
-          echo "${{ steps.kv.outputs.secrets.test-secret1 }}"
-          echo "${{ steps.kv.outputs.secrets.alt-test-secret1 }}"
+          echo "${{ steps.kv.outputs.test-secret1 }}"
+          echo "${{ steps.kv.outputs.alt-test-secret1 }}"
           echo "$(cat data/file.txt)"
-          echo "${{ steps.kv.outputs.secrets.raw-secret2 }}"
+          echo "${{ steps.kv.outputs.raw-secret2 }}"
           echo "$TEST_SECRET3"
           echo "$TEST_SECRET2"
         shell: bash

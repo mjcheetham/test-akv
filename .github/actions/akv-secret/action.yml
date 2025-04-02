@@ -49,21 +49,6 @@ inputs:
 
         encoded-secret base64> $env:ENV_SECRET
 
-outputs:
-  secrets:
-    value: ${{ steps.main.outputs.secrets }}
-    description: |
-      An object containing secrets that were set as ``> $outputs:*` outputs.
-
 runs:
-  using: composite
-  steps:
-    - uses: actions/github-script@v7
-      id: main
-      env:
-        INPUT_VAULT: ${{ inputs.vault }}
-        INPUT_SECRETS: ${{ inputs.secrets }}
-      with:
-        script: |
-          const get = require('.github/actions/akv-secret/get-secrets.js');
-          await get(core, exec, process.env.INPUT_VAULT, process.env.INPUT_SECRETS);
+  using: node20
+  main: index.js
